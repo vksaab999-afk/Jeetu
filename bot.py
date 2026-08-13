@@ -20,13 +20,13 @@ logging.basicConfig(level=logging.INFO)
 # ==================== CONFIGURATION ====================
 BOT_TOKEN = "8836710838:AAFPNULu7qvH2ZFMZGgJElNjawMR0NaDg3I" 
 
-# Admin Support (Aapki ID)
+# Multiple Admins Support
 ADMIN_IDS = [5785924075]
 
 # MongoDB Atlas URI
 MONGO_URI = "mongodb+srv://Jeetu:jeetul122@jeetu.86vxzav.mongodb.net/?appName=Jeetu"
 
-# Source Chat & Message IDs (Aapke diye hue IDs: 18, 14, 16)
+# Source Chat & Message IDs
 SOURCE_CHAT_ID = 5785924075
 WELCOME_MSG_ID = 18       # 1st Material
 VIDEO_MSG_ID = 14         # 2nd Material
@@ -56,7 +56,7 @@ def save_user_to_mongo(user_id, first_name, username):
     except Exception as e:
         logging.error(f"MongoDB Error: {e}")
 
-# --- KEEP-ALIVE WEB SERVER (Fixed for UptimeRobot) ---
+# --- KEEP-ALIVE WEB SERVER ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -77,10 +77,9 @@ def run_web_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-# --- WELCOME MESSAGES SENDER FUNCTION (Aapka exact original logic) ---
+# --- WELCOME MESSAGES SENDER FUNCTION ---
 async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int):
     try:
-        # 1st Material
         await context.bot.copy_message(
             chat_id=user_id,
             from_chat_id=SOURCE_CHAT_ID,
@@ -88,7 +87,6 @@ async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int)
         )
         await asyncio.sleep(0.4)
 
-        # 2nd Material
         await context.bot.copy_message(
             chat_id=user_id,
             from_chat_id=SOURCE_CHAT_ID,
@@ -96,7 +94,6 @@ async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int)
         )
         await asyncio.sleep(0.4)
 
-        # 3rd Material (Audio) with Registration Link Button
         keyboard = [
             [InlineKeyboardButton("Registration Link 🔗", url=REGISTRATION_LINK)]
         ]
@@ -112,7 +109,7 @@ async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int)
     except Exception as e:
         logging.error(f"Could not send welcome content to user {user_id}: {e}")
 
-# --- JOIN REQUEST HANDLER (Manual Approval - request.approve() hata diya hai) ---
+# --- JOIN REQUEST HANDLER ---
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     request = update.chat_join_request
     user = request.from_user
@@ -125,7 +122,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_user_to_mongo(user.id, user.first_name, user.username)
     await send_welcome_content(context, user.id)
 
-# --- BROADCAST LOGIC (Aapka original working code logic) ---
+# --- BROADCAST LOGIC ---
 async def execute_broadcast(message_to_broadcast, context, admin_chat_id):
     users = list(users_collection.find({}, {"user_id": 1}))
     total_users = len(users)
