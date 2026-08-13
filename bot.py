@@ -20,17 +20,15 @@ logging.basicConfig(level=logging.INFO)
 # ==================== CONFIGURATION ====================
 BOT_TOKEN = "8836710838:AAFPNULu7qvH2ZFMZGgJElNjawMR0NaDg3I" 
 
-# Multiple Admins Support (Aapki ID aur future ke liye aur bhi add karne ka option)
+# Multiple Admins Support
 ADMIN_IDS = [5785924075]
 
-# MongoDB Atlas URI (Aapka naya wala database details)
+# MongoDB Atlas URI
 MONGO_URI = "mongodb+srv://Jeetu:jeetul122@jeetu.86vxzav.mongodb.net/?appName=Jeetu"
 
-# Source Chat & Message IDs (Jo aapne di hain: 18, 14, 16)
+# Source Chat & Aapki di hui 3 Material IDs
 SOURCE_CHAT_ID = 5785924075
-WELCOME_MSG_ID = 18       # 1st Material ID
-VIDEO_MSG_ID = 14         # 2nd Material ID
-AUDIO_MSG_ID = 16         # 3rd Material ID
+MATERIAL_IDS = [18, 14, 16]
 
 REGISTRATION_LINK = "https://dhaniwin77.com/register?inviteCode=MZP7BDN&from=web"
 # =======================================================
@@ -56,7 +54,7 @@ def save_user_to_mongo(user_id, first_name, username):
     except Exception as e:
         logging.error(f"MongoDB Error: {e}")
 
-# --- KEEP-ALIVE WEB SERVER (Fixed for Render/UptimeRobot) ---
+# --- KEEP-ALIVE WEB SERVER (For Render/UptimeRobot) ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -77,63 +75,37 @@ def run_web_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-# --- WELCOME MESSAGES SENDER FUNCTION ---
-async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int, first_name: str):
+# --- MATERIAL SENDER FUNCTION (Sirf 3 IDs bhejega) ---
+async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int):
     try:
-        welcome_text = (
-            f"Welcome {first_name} ❤️‍🔥\n\n"
-            f"Yrr aapne colour trading me aaj tak kitna bhi loss kia ho no problem sab recover ho jayega\n\n"
-            f"100%\n\n"
-            f"Niche ka video pura dekho or paisa chapo💸\n"
-            f"⬇️⬇️⬇️⬇️⬇️⬇️⬇️⬇️⬇️"
-        )
-        await context.bot.send_message(chat_id=user_id, text=welcome_text)
-
-        await context.bot.copy_message(
-            chat_id=user_id,
-            from_chat_id=SOURCE_CHAT_ID,
-            message_id=WELCOME_MSG_ID
-        )
-
-        await context.bot.copy_message(
-            chat_id=user_id,
-            from_chat_id=SOURCE_CHAT_ID,
-            message_id=VIDEO_MSG_ID
-        )
-
-        keyboard = [
-            [InlineKeyboardButton("Registration Link 🔗", url=REGISTRATION_LINK)]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await context.bot.copy_message(
-            chat_id=user_id,
-            from_chat_id=SOURCE_CHAT_ID,
-            message_id=AUDIO_MSG_ID,
-            reply_markup=reply_markup
-        )
-
+        # Aapki di gayi teeno IDs ko ek-ek karke copy karke bhejega
+        for msg_id in MATERIAL_IDS:
+            await context.bot.copy_message(
+                chat_id=user_id,
+                from_chat_id=SOURCE_CHAT_ID,
+                message_id=msg_id
+            )
+            await asyncio.sleep(0.5)
     except Exception as e:
-        logging.error(f"Could not send welcome content to user {user_id}: {e}")
+        logging.error(f"Could not send material to user {user_id}: {e}")
 
-# --- JOIN REQUEST HANDLER ---
+# --- JOIN REQUEST HANDLER (Manual Approval & Material Send) ---
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     request = update.chat_join_request
     user = request.from_user
+    
+    # User ko database me save karein
     save_user_to_mongo(user.id, user.first_name, user.username)
     
-    try:
-        await request.approve()
-    except Exception as e:
-        logging.error(f"Failed to approve join request: {e}")
-        
-    await send_welcome_content(context, user.id, user.first_name)
+    # Note: Request approve() yahan nahi ho rahi, aap manual karoge. 
+    # Lekin user ko DM me material chala jayega:
+    await send_welcome_content(context, user.id)
 
 # --- START COMMAND ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     save_user_to_mongo(user.id, user.first_name, user.username)
-    await send_welcome_content(context, user.id, user.first_name)
+    await send_welcome_content(context, user.id)
 
 # --- BROADCAST LOGIC ---
 async def execute_broadcast(message_to_broadcast, context, admin_chat_id):
@@ -175,7 +147,7 @@ async def execute_broadcast(message_to_broadcast, context, admin_chat_id):
         parse_mode="Markdown"
     )
 
-# --- DIRECT AUTOMATIC BROADCAST ---
+# --- DIRECT AUTOMATIC BROADCAST (Admin kuch bhi bheje to sabko jayega) ---
 async def auto_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     if update.effective_user.id not in ADMIN_IDS:
@@ -208,11 +180,11 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await msg.reply_text("⚠️ Kripya message ke sath /broadcast likhein ya kisi message par reply karke /broadcast bhejein.")
 
-# --- STATS COMMAND ---
+# --- STATS COMMAND (Only for Admin) ---
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id in ADMIN_IDS:
         total_users = users_collection.count_documents({})
-        await update.message.reply_text(f"📊 **Total Users:** `{total_users}`", parse_mode="Markdown")
+        await update.message.reply_text(f"📊 **Total Users in Database:** `{total_users}`", parse_mode="Markdown")
 
 def main():
     Thread(target=run_web_server, daemon=True).start()
