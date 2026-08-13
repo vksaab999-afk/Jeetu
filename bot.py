@@ -1,41 +1,59 @@
+import os
+import asyncio
+import logging
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
 from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
+logging.basicConfig(level=logging.INFO)
+
+# Render Port Keep-Alive Web Server
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is Running Alive!")
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# ==================== CONFIGURATION ====================
 BOT_TOKEN = "8836710838:AAFPNULu7qvH2ZFMZGgJElNjawMR0NaDg3I"
+# =======================================================
 
-async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.message
+async def get_ids(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message:
+        chat_id = update.effective_chat.id
+        msg_id = update.message.message_id
+        
+        reply_text = (
+            f"✅ **Message ID Extracted!**\n\n"
+            f"🆔 **CHAT_ID:** `{chat_id}`\n"
+            f"📩 **MSG_ID:** `{msg_id}`"
+        )
+        await update.message.reply_text(reply_text, parse_mode="Markdown")
+
+async def main_async():
+    # Background me web server start hoga Render ke liye
+    Thread(target=run_web_server, daemon=True).start()
     
-    if message.document:
-        file_id = message.document.file_id
-        file_name = message.document.file_name
-        print(f"Document ID: {file_id}") # Terminal me print hoga
-        await message.reply_text(f"📁 **Document File ID:**\n`{file_id}`\n\nName: {file_name}", parse_mode="Markdown")
-        
-    elif message.video:
-        file_id = message.video.file_id
-        print(f"Video ID: {file_id}")
-        await message.reply_text(f"🎬 **Video File ID:**\n`{file_id}`", parse_mode="Markdown")
-        
-    elif message.audio:
-        file_id = message.audio.file_id
-        print(f"Audio ID: {file_id}")
-        await message.reply_text(f"🎵 **Audio File ID:**\n`{file_id}`", parse_mode="Markdown")
-        
-    elif message.photo:
-        file_id = message.photo[-1].file_id
-        print(f"Photo ID: {file_id}")
-        await message.reply_text(f"🖼 **Photo File ID:**\n`{file_id}`", parse_mode="Markdown")
-        
-    elif message.text:
-        await message.reply_text(f"💬 **Text Message:**\n{message.text}")
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(MessageHandler(filters.ALL, get_ids))
+    
+    print("Bot is active and polling...")
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    
+    # Bot ko chalu rakhne ke liye
+    stop_signal = asyncio.Event()
+    await stop_signal.wait()
 
 def main():
-    application = Application.builder().token(BOT_TOKEN).build()
-    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, get_file_id))
-    
-    print("ID Finder Bot is running and waiting for messages...")
-    application.run_polling()
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()
