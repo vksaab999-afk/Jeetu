@@ -24,7 +24,7 @@ BOT_TOKEN = "8836710838:AAFPNULu7qvH2ZFMZGgJElNjawMR0NaDg3I"
 ADMIN_IDS = [5785924075]
 
 # MongoDB Atlas URI
-MONGO_URI = "mongodb+srv://Jeetu:jeetul122@jeetu.86vxzav.mongodb.net/?appName=Jeetu"
+MONGO_URI = "mongodb+srv://Jeetu:Jeetu0001@jeetu.86vxzav.mongodb.net/?retryWrites=true&w=majority&appName=Jeetu"
 
 # Source Chat & Message IDs
 SOURCE_CHAT_ID = 5785924075
