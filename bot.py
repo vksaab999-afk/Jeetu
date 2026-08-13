@@ -26,9 +26,11 @@ ADMIN_IDS = [5785924075]
 # MongoDB Atlas URI
 MONGO_URI = "mongodb+srv://Jeetu:jeetul122@jeetu.86vxzav.mongodb.net/?appName=Jeetu"
 
-# Source Chat & Aapki di hui 3 Material IDs
+# Source Chat & Message IDs
 SOURCE_CHAT_ID = 5785924075
-MATERIAL_IDS = [18, 14, 16]  # 16 number wala audio message hai
+WELCOME_MSG_ID = 18       # 1st Material
+VIDEO_MSG_ID = 14         # 2nd Material
+AUDIO_MSG_ID = 16         # 3rd Material (Audio)
 
 REGISTRATION_LINK = "https://www.jaiclub47.com/#/register?invitationCode=883146899093"
 # =======================================================
@@ -54,7 +56,7 @@ def save_user_to_mongo(user_id, first_name, username):
     except Exception as e:
         logging.error(f"MongoDB Error: {e}")
 
-# --- KEEP-ALIVE WEB SERVER (For Render/UptimeRobot) ---
+# --- KEEP-ALIVE WEB SERVER (Fixed for UptimeRobot/Render) ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -75,19 +77,26 @@ def run_web_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-# --- MATERIAL SENDER FUNCTION (Audio ke sath Link Button) ---
+# --- MATERIAL SENDER FUNCTION ---
 async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int):
     try:
-        # Pehle 18 aur 14 number message bhejege
-        for msg_id in MATERIAL_IDS[:2]:
-            await context.bot.copy_message(
-                chat_id=user_id,
-                from_chat_id=SOURCE_CHAT_ID,
-                message_id=msg_id
-            )
-            await asyncio.sleep(0.4)
+        # 1st Material
+        await context.bot.copy_message(
+            chat_id=user_id,
+            from_chat_id=SOURCE_CHAT_ID,
+            message_id=WELCOME_MSG_ID
+        )
+        await asyncio.sleep(0.4)
 
-        # 3rd message (Audio - ID: 16) ke sath Registration Link ka button lagakar bhejenge
+        # 2nd Material
+        await context.bot.copy_message(
+            chat_id=user_id,
+            from_chat_id=SOURCE_CHAT_ID,
+            message_id=VIDEO_MSG_ID
+        )
+        await asyncio.sleep(0.4)
+
+        # 3rd Material (Audio) with Registration Link Button
         keyboard = [
             [InlineKeyboardButton("Registration Link 🔗", url=REGISTRATION_LINK)]
         ]
@@ -96,18 +105,17 @@ async def send_welcome_content(context: ContextTypes.DEFAULT_TYPE, user_id: int)
         await context.bot.copy_message(
             chat_id=user_id,
             from_chat_id=SOURCE_CHAT_ID,
-            message_id=MATERIAL_IDS[2],
+            message_id=AUDIO_MSG_ID,
             reply_markup=reply_markup
         )
 
     except Exception as e:
         logging.error(f"Could not send material to user {user_id}: {e}")
 
-# --- JOIN REQUEST HANDLER ---
+# --- JOIN REQUEST HANDLER (Manual Approval & DM Material) ---
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     request = update.chat_join_request
     user = request.from_user
-    
     save_user_to_mongo(user.id, user.first_name, user.username)
     await send_welcome_content(context, user.id)
 
@@ -117,7 +125,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_user_to_mongo(user.id, user.first_name, user.username)
     await send_welcome_content(context, user.id)
 
-# --- BROADCAST LOGIC (Fixed) ---
+# --- BROADCAST LOGIC (Aapke original code ke hisab se) ---
 async def execute_broadcast(message_to_broadcast, context, admin_chat_id):
     users = list(users_collection.find({}, {"user_id": 1}))
     total_users = len(users)
@@ -132,12 +140,19 @@ async def execute_broadcast(message_to_broadcast, context, admin_chat_id):
     for u in users:
         u_id = u["user_id"]
         try:
-            # Direct copy message ka use kiya hai taaki admin jo bhi bheje (photo, video, text, audio) same to same copy ho jaye
-            await context.bot.copy_message(
-                chat_id=u_id,
-                from_chat_id=admin_chat_id,
-                message_id=message_to_broadcast.message_id
-            )
+            if message_to_broadcast.text:
+                await context.bot.send_message(chat_id=u_id, text=message_to_broadcast.text, entities=message_to_broadcast.entities)
+            elif message_to_broadcast.photo:
+                await context.bot.send_photo(chat_id=u_id, photo=message_to_broadcast.photo[-1].file_id, caption=message_to_broadcast.caption, caption_entities=message_to_broadcast.caption_entities)
+            elif message_to_broadcast.video:
+                await context.bot.send_video(chat_id=u_id, video=message_to_broadcast.video.file_id, caption=message_to_broadcast.caption, caption_entities=message_to_broadcast.caption_entities)
+            elif message_to_broadcast.audio:
+                await context.bot.send_audio(chat_id=u_id, audio=message_to_broadcast.audio.file_id, caption=message_to_broadcast.caption, caption_entities=message_to_broadcast.caption_entities)
+            elif message_to_broadcast.voice:
+                await context.bot.send_voice(chat_id=u_id, voice=message_to_broadcast.voice.file_id, caption=message_to_broadcast.caption, caption_entities=message_to_broadcast.caption_entities)
+            elif message_to_broadcast.document:
+                await context.bot.send_document(chat_id=u_id, document=message_to_broadcast.document.file_id, caption=message_to_broadcast.caption, caption_entities=message_to_broadcast.caption_entities)
+            
             success += 1
             await asyncio.sleep(0.04)
         except Exception as e:
@@ -183,7 +198,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await msg.reply_text("⚠️ Kripya message ke sath /broadcast likhein ya kisi message par reply karke /broadcast bhejein.")
 
-# --- STATS COMMAND ---
+# --- STATS COMMAND (Only for Admin) ---
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id in ADMIN_IDS:
         total_users = users_collection.count_documents({})
