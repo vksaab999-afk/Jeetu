@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 BOT_TOKEN = "8836710838:AAFPNULu7qvH2ZFMZGgJElNjawMR0NaDg3I" 
 
 # Multiple Admins Support
-ADMIN_IDS = [5785924075,6990609012]
+ADMIN_IDS = [5785924075,8377641826]
 
 # MongoDB Atlas URI
 MONGO_URI = "mongodb+srv://Jeetu:Jeetu0001@jeetu.86vxzav.mongodb.net/?retryWrites=true&w=majority&appName=Jeetu"
